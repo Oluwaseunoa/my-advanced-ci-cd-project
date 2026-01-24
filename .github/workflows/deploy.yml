@@ -1,0 +1,45 @@
+name: Deploy Application
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    # Allows controlled manual deployments
+
+# 🔐 Deployment should not need write access by default
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+
+    # GitHub Environment enables:
+    # - Environment-scoped secrets
+    # - Manual approval gates
+    # - Deployment visibility
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Deploy application (placeholder)
+        run: |
+          echo "🚀 Deploying application to production..."
+          echo "This is where your cloud deployment command lives"
+        env:
+          ACCESS_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
