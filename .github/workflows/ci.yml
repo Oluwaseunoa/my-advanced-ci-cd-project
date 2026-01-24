@@ -1,0 +1,72 @@
+name: CI - Build & Test Node.js Application
+# Clear, descriptive name → shows up in GitHub Actions UI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    # Allows manual execution from the GitHub UI (great for demos & debugging)
+
+# 🔐 Least-privilege permissions
+# Default is write-all — we explicitly reduce it
+permissions:
+  contents: read
+
+jobs:
+  # ----------------------------------------
+  # Job 1: Linting (fast feedback)
+  # ----------------------------------------
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with npm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies (clean install)
+        run: npm ci
+
+      - name: Run lint script
+        run: npm run lint
+
+  # ----------------------------------------
+  # Job 2: Tests (reusable workflow)
+  # ----------------------------------------
+  test:
+    name: Test Application
+    needs: lint
+    # Reuses another workflow instead of duplicating logic
+    uses: ./.github/workflows/reusable-test.yml
+
+  # ----------------------------------------
+  # Job 3: Build
+  # ----------------------------------------
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with npm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build

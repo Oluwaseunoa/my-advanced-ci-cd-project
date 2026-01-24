@@ -1,0 +1,27 @@
+{
+  "name": "my-advanced-ci-cd-project",
+  "version": "1.0.0",
+  "description": "Demo for advanced GitHub Actions course",
+  "main": "index.js",
+  "scripts": {
+    "lint": "echo '✅ Lint passed'",
+    "test": "echo '✅ Tests passed'",
+    "build": "echo '✅ Build succeeded'",
+    "start": "echo '🚀 App starting'"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Oluwaseunoa/my-advanced-ci-cd-project.git"
+  },
+  "keywords": [],
+  "author": "Oluwaseun Osunsola",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Oluwaseunoa/my-advanced-ci-cd-project/issues"
+  },
+  "homepage": "https://github.com/Oluwaseunoa/my-advanced-ci-cd-project#readme"
+}

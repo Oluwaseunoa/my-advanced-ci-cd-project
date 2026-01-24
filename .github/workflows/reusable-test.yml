@@ -1,0 +1,42 @@
+name: Reusable - Test Node.js Application
+# This workflow is intentionally reusable across multiple pipelines
+
+on:
+  workflow_call:
+    # Allows this workflow to be called by other workflows (ci.yml, release.yml, etc.)
+
+jobs:
+  test:
+    name: Run Tests on Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Matrix allows parallel execution across multiple environments
+      matrix:
+        node-version: [18, 20]
+      fail-fast: false
+      # If Node 18 fails, Node 20 still runs (important for diagnostics)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js with npm cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies (CI-safe)
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      # Optional but professional: preserve test outputs
+      - name: Upload test results (if any)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: coverage/
