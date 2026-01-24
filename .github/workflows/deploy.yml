@@ -2,7 +2,10 @@ name: Deploy Application
 
 on:
   push:
-    branches: [ main, develop ]
+    branches:
+      - develop
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -10,11 +13,11 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy to ${{ github.ref_name }}
+    name: Deploy Application
     runs-on: ubuntu-latest
 
     environment:
-      name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+      name: ${{ startsWith(github.ref, 'refs/tags/') && 'production' || 'staging' }}
 
     steps:
       - name: Checkout repository
@@ -32,10 +35,10 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Deploy application
+      - name: Deploy
         run: |
-          echo "🚀 Deploying to environment: $DEPLOY_ENV"
-          echo "Using token: $ACCESS_TOKEN"
+          echo "🚀 Deploying version: $VERSION"
+          echo "🌍 Environment: $DEPLOY_ENV"
         env:
-          ACCESS_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          VERSION: ${{ github.ref_name }}
           DEPLOY_ENV: ${{ vars.DEPLOY_ENV }}
