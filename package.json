@@ -1,6 +1,6 @@
 {
   "name": "my-advanced-ci-cd-project",
-  "version": "1.0.0",
+  "version": "0.0.0-development",
   "description": "Demo for advanced GitHub Actions course",
   "main": "index.js",
   "scripts": {
