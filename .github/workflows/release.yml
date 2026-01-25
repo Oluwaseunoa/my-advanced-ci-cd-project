@@ -5,7 +5,8 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: write  # Required to create tags & releases
+  contents: write     # create releases & upload assets
+  id-token: write     # REQUIRED for SLSA provenance (OIDC)
 
 jobs:
   release:
@@ -16,15 +17,46 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for full git history
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
+      - name: Install dependencies
+        run: npm ci
+
+      # ---------------------------
+      # SBOM GENERATION (CycloneDX)
+      # ---------------------------
+      - name: Generate SBOM
+        run: |
+          npm install -g @cyclonedx/cyclonedx-npm
+          cyclonedx-npm --output-file sbom.xml
+
+      # ---------------------------
+      # ARTIFACT INTEGRITY
+      # ---------------------------
+      - name: Generate checksum
+        run: sha256sum sbom.xml > sbom.sha256
+
+      # ---------------------------
+      # SLSA BUILD PROVENANCE
+      # ---------------------------
+      - name: Generate provenance
+        uses: slsa-framework/slsa-github-generator@v2
+        with:
+          artifact_path: sbom.xml
+
+      # ---------------------------
+      # RELEASE
+      # ---------------------------
       - name: Install semantic-release
-        run: npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+        run: npm install -g semantic-release \
+          @semantic-release/changelog \
+          @semantic-release/git \
+          @semantic-release/github
 
       - name: Run semantic-release
         env:
