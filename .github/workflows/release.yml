@@ -56,10 +56,10 @@ jobs:
           path: |
             sbom.xml
             sbom.sha256
-
   provenance:
     name: Generate SLSA Provenance
     needs: release
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@refs/tags/v1.9.0
     with:
       artifact_path: sbom.xml
+      artifact_download: true
