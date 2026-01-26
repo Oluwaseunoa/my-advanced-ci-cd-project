@@ -5,16 +5,13 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: write
-  id-token: write
+  contents: write     # create releases & upload assets
+  id-token: write     # REQUIRED for SLSA provenance (OIDC)
 
 jobs:
   release:
-    name: Create Release & SBOM
+    name: Create Release
     runs-on: ubuntu-latest
-
-    outputs:
-      sbom-path: sbom.xml
 
     steps:
       - name: Checkout code
@@ -30,14 +27,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # ---------------------------
+      # SBOM GENERATION (CycloneDX)
+      # ---------------------------
       - name: Generate SBOM
         run: |
           npm install -g @cyclonedx/cyclonedx-npm
           cyclonedx-npm --output-file sbom.xml
 
+      # ---------------------------
+      # ARTIFACT INTEGRITY
+      # ---------------------------
       - name: Generate checksum
         run: sha256sum sbom.xml > sbom.sha256
 
+      # ---------------------------
+      # SLSA BUILD PROVENANCE
+      # ---------------------------
+
+      - name: Generate provenance
+        uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1
+        with:
+          artifact_path: sbom.xml
+
+
+      # ---------------------------
+      # RELEASE
+      # ---------------------------
       - name: Install semantic-release
         run: npm install -g semantic-release \
           @semantic-release/changelog \
@@ -48,18 +64,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release
-
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: |
-            sbom.xml
-            sbom.sha256
-
-  provenance:
-    name: Generate SLSA Provenance
-    needs: release
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1
-    with:
-      artifact_path: sbom.xml
