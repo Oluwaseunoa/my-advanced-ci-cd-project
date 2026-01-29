@@ -13,6 +13,10 @@ jobs:
     name: Create Release & SBOM
     runs-on: ubuntu-latest
 
+    # Expose outputs so the provenance job can use them
+    outputs:
+      subjects: ${{ steps.subjects.outputs.subjects }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,47 +39,46 @@ jobs:
       - name: Generate checksum
         run: sha256sum sbom.xml > sbom.sha256
 
-      # ────────────────────────────────────────────────
-      # Compute base64-encoded sha256 hashes for SLSA
-      # Format: "sha256:<hex>  <filename>" (one per line)
-      # ────────────────────────────────────────────────
       - name: Compute SLSA subjects
         id: subjects
         run: |
-          cd "$(dirname sbom.xml)"
+          # Ensure we're in the right directory
+          cd "${{ github.workspace }}"
+
+          # Format: sha256:<full hex digest>  <filename> (two spaces)
           {
-            sha256sum sbom.xml | sed 's/^\(.*\)$/sha256:\1/'
-            sha256sum sbom.sha256 | sed 's/^\(.*\)$/sha256:\1/'
+            printf "sha256:%s  sbom.xml\n" "$(sha256sum sbom.xml | cut -d ' ' -f1)"
+            printf "sha256:%s  sbom.sha256\n" "$(sha256sum sbom.sha256 | cut -d ' ' -f1)"
           } | base64 -w0 > subjects.txt
+
           echo "subjects=$(cat subjects.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Install semantic-release and plugins
         run: npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release
 
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: |
-            sbom.xml
-            sbom.sha256
-
   provenance:
     name: Generate SLSA Provenance
     needs: release
-    
+
     permissions:
       contents: write
       actions: read
       id-token: write
 
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
+    # Use latest version (v2.1.0 as of Feb 2025) for bug fixes and Sigstore bundle support
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
 
     with:
+      # Required: base64-encoded subjects (sha256:hex  name lines)
       base64-subjects: ${{ needs.release.outputs.subjects }}
+
+      # Recommended: attaches provenance.intoto.jsonl to the GitHub Release
       upload-assets: true
-      # provenance-filename: sbom-provenance.intoto.jsonl  # optional, uncomment if you want custom name
+
+      # Optional: customize the provenance file name in the release assets
+      # provenance-filename: sbom-provenance.intoto.jsonl
