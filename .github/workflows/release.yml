@@ -4,19 +4,18 @@ on:
   push:
     branches: [ main ]
 
-# Least privilege permissions required for release + provenance
 permissions:
-  contents: write        # Create tags & GitHub Releases
-  id-token: write        # Required for SLSA provenance (OIDC)
+  contents: write
+  id-token: write
   actions: read
 
 jobs:
   release:
-    name: Semantic Release with SBOM & Provenance
+    name: Semantic Release with SBOM
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout full git history (semantic-release requires this)
+      # 1️⃣ Checkout full history
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -33,23 +32,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4️⃣ Generate SBOM (CycloneDX)
+      # 4️⃣ Generate SBOM
       - name: Generate SBOM
         run: |
           npm install -g @cyclonedx/cyclonedx-npm
           cyclonedx-npm --output-file sbom.xml
 
-      # 5️⃣ Generate checksum for integrity verification
+      # 5️⃣ Generate checksum
       - name: Generate SBOM checksum
         run: sha256sum sbom.xml > sbom.sha256
 
-      # 6️⃣ Generate SLSA provenance for SBOM
-      - name: Generate provenance (SLSA)
-        uses: slsa-framework/slsa-github-generator@v2
-        with:
-          artifact_path: sbom.xml
-
-      # 7️⃣ Install semantic-release & plugins
+      # 6️⃣ Install semantic-release
       - name: Install semantic-release
         run: |
           npm install -g semantic-release \
@@ -57,8 +50,21 @@ jobs:
             @semantic-release/git \
             @semantic-release/github
 
-      # 8️⃣ Run semantic-release (creates tag + GitHub Release)
+      # 7️⃣ Run semantic-release
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release
+
+  provenance:
+    name: Generate SLSA Provenance
+    needs: release
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_nodejs.yml@v1
+    with:
+      node-version: 20
+      artifact-path: sbom.xml
