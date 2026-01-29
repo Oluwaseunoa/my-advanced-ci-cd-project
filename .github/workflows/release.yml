@@ -13,7 +13,6 @@ jobs:
     name: Create Release & SBOM
     runs-on: ubuntu-latest
 
-    # Expose outputs so the provenance job can use them
     outputs:
       subjects: ${{ steps.subjects.outputs.subjects }}
 
@@ -42,16 +41,19 @@ jobs:
       - name: Compute SLSA subjects
         id: subjects
         run: |
-          # Ensure we're in the right directory
           cd "${{ github.workspace }}"
 
-          # Format: sha256:<full hex digest>  <filename> (two spaces)
+          # Produce exactly: sha256:<hex>  <filename>\n (two spaces!)
           {
-            printf "sha256:%s  sbom.xml\n" "$(sha256sum sbom.xml | cut -d ' ' -f1)"
-            printf "sha256:%s  sbom.sha256\n" "$(sha256sum sbom.sha256 | cut -d ' ' -f1)"
-          } | base64 -w0 > subjects.txt
+            sha256sum sbom.xml | awk '{printf "sha256:%s  sbom.xml\n", $1}'
+            sha256sum sbom.sha256 | awk '{printf "sha256:%s  sbom.sha256\n", $1}'
+          } | base64 -w 0 > subjects.b64
 
-          echo "subjects=$(cat subjects.txt)" >> "$GITHUB_OUTPUT"
+          # Debug: print length to confirm it's not empty
+          echo "Base64 length: $(wc -c < subjects.b64)"
+          cat subjects.b64 | base64 -d   # Debug: show decoded
+
+          echo "subjects=$(cat subjects.b64)" >> "$GITHUB_OUTPUT"
 
       - name: Install semantic-release and plugins
         run: npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
@@ -70,15 +72,9 @@ jobs:
       actions: read
       id-token: write
 
-    # Use latest version (v2.1.0 as of Feb 2025) for bug fixes and Sigstore bundle support
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
 
     with:
-      # Required: base64-encoded subjects (sha256:hex  name lines)
       base64-subjects: ${{ needs.release.outputs.subjects }}
-
-      # Recommended: attaches provenance.intoto.jsonl to the GitHub Release
       upload-assets: true
-
-      # Optional: customize the provenance file name in the release assets
-      # provenance-filename: sbom-provenance.intoto.jsonl
+      # provenance-name: sbom-provenance.intoto.jsonl   # optional custom name
