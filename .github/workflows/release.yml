@@ -35,6 +35,20 @@ jobs:
       - name: Generate checksum
         run: sha256sum sbom.xml > sbom.sha256
 
+      # ────────────────────────────────────────────────
+      # Compute base64-encoded sha256 hashes for SLSA
+      # Format: "sha256:<hex>  <filename>" (one per line)
+      # ────────────────────────────────────────────────
+      - name: Compute SLSA subjects
+        id: subjects
+        run: |
+          cd "$(dirname sbom.xml)"
+          {
+            sha256sum sbom.xml | sed 's/^\(.*\)$/sha256:\1/'
+            sha256sum sbom.sha256 | sed 's/^\(.*\)$/sha256:\1/'
+          } | base64 -w0 > subjects.txt
+          echo "subjects=$(cat subjects.txt)" >> "$GITHUB_OUTPUT"
+
       - name: Install semantic-release
         run: npm install -g semantic-release \
           @semantic-release/changelog \
@@ -57,6 +71,7 @@ jobs:
   provenance:
     name: Generate SLSA Provenance
     needs: release
+    runs-on: ubuntu-latest   # Note: must match the builder's expected runner
 
     permissions:
       contents: write
@@ -66,7 +81,11 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
 
     with:
-      artifact_path: |
-         sbom.xml
-         sbom.sha256
+      # The main required input: base64-encoded list of "sha256:hex  filename"
+      subject-base64: ${{ needs.release.outputs.subjects }}
 
+      # Optional but recommended – uploads provenance.intoto.jsonl to the release
+      upload-assets: true
+
+      # Optional: customize provenance filename if desired
+      # provenance-filename: sbom-provenance.intoto.jsonl
