@@ -71,8 +71,7 @@ jobs:
   provenance:
     name: Generate SLSA Provenance
     needs: release
-    runs-on: ubuntu-latest   # Note: must match the builder's expected runner
-
+    
     permissions:
       contents: write
       actions: read
@@ -81,11 +80,6 @@ jobs:
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
 
     with:
-      # The main required input: base64-encoded list of "sha256:hex  filename"
-      subject-base64: ${{ needs.release.outputs.subjects }}
-
-      # Optional but recommended – uploads provenance.intoto.jsonl to the release
+      base64-subjects: ${{ needs.release.outputs.subjects }}
       upload-assets: true
-
-      # Optional: customize provenance filename if desired
-      # provenance-filename: sbom-provenance.intoto.jsonl
+      # provenance-filename: sbom-provenance.intoto.jsonl  # optional, uncomment if you want custom name
