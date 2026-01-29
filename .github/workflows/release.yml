@@ -49,12 +49,8 @@ jobs:
           } | base64 -w0 > subjects.txt
           echo "subjects=$(cat subjects.txt)" >> "$GITHUB_OUTPUT"
 
-      - name: Install semantic-release
-        run: npm install -g semantic-release \
-          @semantic-release/changelog \
-          @semantic-release/git \
-          @semantic-release/github
-
+      - name: Install semantic-release and plugins
+        run: npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
