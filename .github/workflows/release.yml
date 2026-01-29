@@ -1,80 +1,64 @@
-name: Release & Version
+name: Release & Provenance
 
 on:
   push:
     branches: [ main ]
 
+# Least privilege permissions required for release + provenance
 permissions:
-  contents: write
-  id-token: write
+  contents: write        # Create tags & GitHub Releases
+  id-token: write        # Required for SLSA provenance (OIDC)
+  actions: read
 
 jobs:
   release:
-    name: Create Release & SBOM
+    name: Semantic Release with SBOM & Provenance
     runs-on: ubuntu-latest
 
-    outputs:
-      subjects: ${{ steps.subjects.outputs.subjects }}
-
     steps:
-      - name: Checkout code
+      # 1️⃣ Checkout full git history (semantic-release requires this)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # 2️⃣ Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: npm ci
 
+      # 4️⃣ Generate SBOM (CycloneDX)
       - name: Generate SBOM
         run: |
           npm install -g @cyclonedx/cyclonedx-npm
           cyclonedx-npm --output-file sbom.xml
 
-      - name: Generate checksum
+      # 5️⃣ Generate checksum for integrity verification
+      - name: Generate SBOM checksum
         run: sha256sum sbom.xml > sbom.sha256
 
-      - name: Compute SLSA subjects
-        id: subjects
+      # 6️⃣ Generate SLSA provenance for SBOM
+      - name: Generate provenance (SLSA)
+        uses: slsa-framework/slsa-github-generator@v2
+        with:
+          artifact_path: sbom.xml
+
+      # 7️⃣ Install semantic-release & plugins
+      - name: Install semantic-release
         run: |
-          cd "${{ github.workspace }}"
+          npm install -g semantic-release \
+            @semantic-release/changelog \
+            @semantic-release/git \
+            @semantic-release/github
 
-          # Produce exactly: sha256:<hex>  <filename>\n (two spaces!)
-          {
-            sha256sum sbom.xml | awk '{printf "sha256:%s  sbom.xml\n", $1}'
-            sha256sum sbom.sha256 | awk '{printf "sha256:%s  sbom.sha256\n", $1}'
-          } | base64 -w 0 > subjects.b64
-
-          # Debug: print length to confirm it's not empty
-          echo "Base64 length: $(wc -c < subjects.b64)"
-          cat subjects.b64 | base64 -d   # Debug: show decoded
-
-          echo "subjects=$(cat subjects.b64)" >> "$GITHUB_OUTPUT"
-
-      - name: Install semantic-release and plugins
-        run: npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
-
+      # 8️⃣ Run semantic-release (creates tag + GitHub Release)
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release
-
-  provenance:
-    name: Generate SLSA Provenance
-    needs: release
-
-    permissions:
-      contents: write
-      actions: read
-      id-token: write
-
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
-
-    with:
-      base64-subjects: ${{ needs.release.outputs.subjects }}
-      upload-assets: true
-      # provenance-name: sbom-provenance.intoto.jsonl   # optional custom name
