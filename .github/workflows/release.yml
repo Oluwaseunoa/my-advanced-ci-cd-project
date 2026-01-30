@@ -63,6 +63,12 @@ jobs:
             @semantic-release/git \
             @semantic-release/github
 
+      # 8️⃣ Validate SBOM
+      - name: Validate SBOM
+        run: |
+          npm install -g @cyclonedx/cyclonedx-cli
+          cyclonedx validate --input-file sbom.xml
+
       # 8️⃣ Run semantic-release
       - name: Run semantic-release
         env:

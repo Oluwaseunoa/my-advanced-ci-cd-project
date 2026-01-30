@@ -38,6 +38,10 @@ jobs:
       - name: Run lint script
         run: npm run lint
 
+      - name: Enforce dependency policy
+        run: |
+          npm audit --audit-level=high
+
   # ----------------------------------------
   # Job 2: Tests (reusable workflow)
   # ----------------------------------------
