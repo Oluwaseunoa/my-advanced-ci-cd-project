@@ -1,3 +1,13 @@
+## [1.2.2](https://github.com/Oluwaseunoa/my-advanced-ci-cd-project/compare/v1.2.1...v1.2.2) (2026-01-30)
+
+
+### Bug Fixes
+
+* **ci:** align SLSA generator inputs with supported interface ([df86168](https://github.com/Oluwaseunoa/my-advanced-ci-cd-project/commit/df8616815f0e7e58748e56d9bd3472c71d3954bb))
+* **ci:** align SLSA generator inputs with supported interface v10 ([26941b0](https://github.com/Oluwaseunoa/my-advanced-ci-cd-project/commit/26941b011d6d9193b8dab1a54759ce07c5949cb4))
+* **ci:** align SLSA generator inputs with supported interface v8 ([1b28e4b](https://github.com/Oluwaseunoa/my-advanced-ci-cd-project/commit/1b28e4b98098251bb668baf05ca279ef2e817da4))
+* **ci:** align SLSA generator inputs with supported interface v9 ([c98be25](https://github.com/Oluwaseunoa/my-advanced-ci-cd-project/commit/c98be259339654ac4872f4eab90bac026ae9d9b9))
+
 ## [1.2.1](https://github.com/Oluwaseunoa/my-advanced-ci-cd-project/compare/v1.2.0...v1.2.1) (2026-01-29)
 
 
