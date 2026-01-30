@@ -4,15 +4,21 @@ on:
   push:
     branches: [ main ]
 
+# ⚠️ CRITICAL: Add attestations: write permission
 permissions:
   contents: write
   id-token: write
+  attestations: write  # 👈 ADD THIS
   actions: read
 
 jobs:
   release:
     name: Semantic Release with SBOM
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 👈 Job-level permissions
+      id-token: write
+      attestations: write
 
     steps:
       # 1️⃣ Checkout full history
@@ -67,9 +73,12 @@ jobs:
     name: Generate SLSA Provenance
     needs: release
     runs-on: ubuntu-latest
+    
+    # ⚠️ Job-specific permissions
     permissions:
-      id-token: write
-      contents: read
+      id-token: write    # For generating signatures
+      attestations: write # For storing attestations
+      contents: read     # For reading the SBOM
       actions: read
 
     steps:
@@ -84,20 +93,16 @@ jobs:
         uses: actions/attest-build-provenance@v1
         with:
           subject-path: "sbom.xml"
+          push-to-registry: false  # Keep attestation in GitHub
       
-      # Upload provenance
-      - name: Upload provenance
+      # Verify attestation was created
+      - name: List generated files
+        run: ls -la *.build.provenance
+      
+      # Option 1: Upload as artifact
+      - name: Upload provenance artifact
         uses: actions/upload-artifact@v4
         with:
           name: provenance
-          path: sbom.xml.build.provenance
-      
-      # Optionally, also upload the SBOM to release
-      - name: Upload SBOM to Release
-        if: success()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # This would attach the SBOM to the release created by semantic-release
-          # You might need to fetch the latest release tag
-          echo "SBOM would be attached to release here"
+          path: "*.build.provenance"
+          if-no-files-found: error
