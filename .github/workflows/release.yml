@@ -38,11 +38,18 @@ jobs:
           npm install -g @cyclonedx/cyclonedx-npm
           cyclonedx-npm --output-file sbom.xml
 
-      # 5️⃣ Generate checksum
+      # 5️⃣ Upload SBOM as artifact
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.xml
+
+      # 6️⃣ Generate checksum
       - name: Generate SBOM checksum
         run: sha256sum sbom.xml > sbom.sha256
 
-      # 6️⃣ Install semantic-release
+      # 7️⃣ Install semantic-release
       - name: Install semantic-release
         run: |
           npm install -g semantic-release \
@@ -50,7 +57,7 @@ jobs:
             @semantic-release/git \
             @semantic-release/github
 
-      # 7️⃣ Run semantic-release
+      # 8️⃣ Run semantic-release
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,12 +66,38 @@ jobs:
   provenance:
     name: Generate SLSA Provenance
     needs: release
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
       actions: read
 
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_nodejs.yml@v1
-    with:
-      node-version: 20
-      artifact-path: sbom.xml
+    steps:
+      # Download SBOM from previous job
+      - name: Download SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+      
+      # Generate provenance using GitHub's built-in action
+      - name: Generate provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: "sbom.xml"
+      
+      # Upload provenance
+      - name: Upload provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: provenance
+          path: sbom.xml.build.provenance
+      
+      # Optionally, also upload the SBOM to release
+      - name: Upload SBOM to Release
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # This would attach the SBOM to the release created by semantic-release
+          # You might need to fetch the latest release tag
+          echo "SBOM would be attached to release here"
