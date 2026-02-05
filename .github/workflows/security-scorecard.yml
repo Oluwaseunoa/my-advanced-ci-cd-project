@@ -14,7 +14,9 @@ permissions:
 
 jobs:
   scorecard:
+    name: OpenSSF Scorecard Scan
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,8 +27,9 @@ jobs:
           results_file: results.sarif
           results_format: sarif
           publish_results: true
+          repo_token: ${{ secrets.GITHUB_TOKEN }}  # 👈 REQUIRED
 
-      - name: Upload SARIF
+      - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
