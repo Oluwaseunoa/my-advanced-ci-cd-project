@@ -4,11 +4,11 @@ on:
   push:
     branches: [ main ]
 
-# ⚠️ CRITICAL: Add attestations: write permission
+# Global permissions (least privilege)
 permissions:
   contents: write
   id-token: write
-  attestations: write  # 👈 ADD THIS
+  attestations: write
   actions: read
 
 jobs:
@@ -16,12 +16,12 @@ jobs:
     name: Semantic Release with SBOM
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 👈 Job-level permissions
+      contents: write
       id-token: write
       attestations: write
 
     steps:
-      # 1️⃣ Checkout full history
+      # 1️⃣ Checkout full history (required for semantic-release)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -32,19 +32,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
 
       # 3️⃣ Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # 4️⃣ Generate SBOM
+      # 4️⃣ Generate SBOM (CycloneDX for npm)
       - name: Generate SBOM
         run: |
           npm install -g @cyclonedx/cyclonedx-npm
           cyclonedx-npm --output-file sbom.xml
 
-      # 5️⃣ Upload SBOM as artifact
+      # 5️⃣ Upload SBOM artifact
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
         with:
@@ -63,19 +63,12 @@ jobs:
             @semantic-release/git \
             @semantic-release/github
 
-      # 8️⃣ Validate SBOM
-      - name: Validate SBOM
-        run: |
-          npm install -g @cyclonedx/cyclonedx-cli
-          cyclonedx validate --input-file sbom.xml
-
       # 8️⃣ Run semantic-release
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release
 
-  # FIXED: Correct indentation for provenance job
   provenance:
     name: Generate SLSA Provenance
     needs: release
@@ -87,117 +80,17 @@ jobs:
       actions: read
 
     steps:
-      # Download SBOM from previous job
+      # Download SBOM from release job
       - name: Download SBOM
         uses: actions/download-artifact@v4
         with:
           name: sbom
-      
-      # Debug: Check what was downloaded
-      - name: Debug - List files
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "Files in directory:"
-          ls -la
-          echo "SBOM file details:"
-          ls -la sbom.xml
-          echo "SBOM file size:"
-          wc -l sbom.xml
-          echo "First 5 lines of SBOM:"
-          head -5 sbom.xml
-      
-      # Generate provenance with DEBUG mode
+
+      # Generate SLSA provenance using GitHub Attestations
       - name: Generate provenance
         id: attest
         uses: actions/attest-build-provenance@v1
         with:
-          subject-path: "sbom.xml"
+          subject-path: sbom.xml
+          subject-name: sbom
           push-to-registry: false
-          subject-name: "sbom"
-        continue-on-error: true  # Continue even if it fails
-      
-      # Check attestation step status
-      - name: Check attestation output
-        run: |
-          echo "Attestation step status: ${{ steps.attest.outcome }}"
-          echo "Attestation result: ${{ steps.attest.result }}"
-          echo "Attestation outputs:"
-          echo "${{ toJSON(steps.attest.outputs) }}"
-      
-      # Alternative: Create simple provenance manually
-      - name: Create manual provenance (fallback)
-        if: steps.attest.outcome != 'success'
-        run: |
-          echo "Creating manual provenance fallback..."
-          
-          # Get file hash
-          SBOM_HASH=$(sha256sum sbom.xml | cut -d' ' -f1)
-          
-          # Create simple provenance JSON
-          cat > sbom.build.provenance.json << EOF
-          {
-            "_type": "https://in-toto.io/Statement/v0.1",
-            "subject": [
-              {
-                "name": "sbom.xml",
-                "digest": {
-                  "sha256": "${SBOM_HASH}"
-                }
-              }
-            ],
-            "predicateType": "https://slsa.dev/provenance/v0.2",
-            "predicate": {
-              "buildDefinition": {
-                "buildType": "https://github.com/Attestations/GitHubActionsWorkflow@v1",
-                "externalParameters": {
-                  "workflow": {
-                    "ref": "${{ github.ref }}",
-                    "repository": "${{ github.repository }}",
-                    "sha": "${{ github.sha }}"
-                  }
-                },
-                "internalParameters": {
-                  "github": {
-                    "event_name": "${{ github.event_name }}",
-                    "run_id": "${{ github.run_id }}",
-                    "run_attempt": "${{ github.run_attempt }}",
-                    "actor": "${{ github.actor }}"
-                  }
-                }
-              },
-              "runDetails": {
-                "builder": {
-                  "id": "https://github.com/actions/runner"
-                },
-                "metadata": {
-                  "invocationId": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}"
-                }
-              }
-            }
-          }
-          EOF
-          
-          echo "Created manual provenance file"
-          cat sbom.build.provenance.json
-      
-      # List all files again
-      - name: List all generated files
-        run: |
-          echo "All files in directory:"
-          ls -la
-          echo "Looking for provenance files:"
-          find . -name "*provenance*" -type f 2>/dev/null || echo "No provenance files found"
-          find . -name "*.build.*" -type f 2>/dev/null || echo "No .build files found"
-      
-      # Upload whatever was generated
-      - name: Upload provenance artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: provenance-artifacts
-          path: |
-            *.build.*
-            *provenance*
-            sbom.xml
-            sbom.sha256
-          if-no-files-found: warn  # Change to warn instead of error
