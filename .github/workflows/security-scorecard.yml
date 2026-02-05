@@ -4,6 +4,8 @@ on:
   branch_protection_rule:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ] 
   schedule:
     - cron: '0 3 * * 0' # Weekly scan
 
