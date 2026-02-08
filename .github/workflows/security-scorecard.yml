@@ -1,7 +1,6 @@
 name: OpenSSF Scorecard
 
 on:
-  branch_protection_rule:
   push:
     branches: [ main ]
   pull_request:
@@ -15,7 +14,7 @@ permissions:
 
 jobs:
   scorecard:
-    name: OpenSSF Scorecard Scan
+    name: scorecard   # 🔑 MUST match branch protection exactly
     runs-on: ubuntu-latest
 
     # ✅ Job-level permissions (minimum required)
