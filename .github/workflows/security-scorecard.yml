@@ -9,19 +9,19 @@ on:
   schedule:
     - cron: '0 3 * * 0' # Weekly scan
 
-# 🔐 Global permissions MUST be read-only
+# 🚨 GLOBAL PERMISSIONS — MUST BE READ-ONLY
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   scorecard:
     name: OpenSSF Scorecard Scan
     runs-on: ubuntu-latest
 
-    # 🔐 Job-level permission escalation (allowed)
+    # ✅ Job-level permissions (minimum required)
     permissions:
       security-events: write
+      id-token: write
 
     steps:
       - name: Checkout code
