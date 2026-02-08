@@ -8,15 +8,19 @@ on:
   schedule:
     - cron: '0 3 * * 0' # Weekly scan
 
+# 🔐 Global permissions MUST be read-only
 permissions:
-  security-events: write
-  id-token: write
   contents: read
+  id-token: write
 
 jobs:
   scorecard:
     name: scorecard   # 🔑 MUST match branch protection exactly
     runs-on: ubuntu-latest
+
+    # 🔐 Job-level permission escalation (allowed)
+    permissions:
+      security-events: write
 
     steps:
       - name: Checkout code
