@@ -3,6 +3,8 @@ name: Release & Provenance
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 # Global permissions (least privilege)
 permissions:
@@ -14,6 +16,8 @@ permissions:
 jobs:
   release:
     name: Semantic Release with SBOM
+    # 🚨 IMPORTANT: Only run release on push to main
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -21,7 +25,7 @@ jobs:
       attestations: write
 
     steps:
-      # 1️⃣ Checkout full history (required for semantic-release)
+      # 1️⃣ Checkout full history
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -38,13 +42,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4️⃣ Generate SBOM (CycloneDX for npm)
+      # 4️⃣ Generate SBOM
       - name: Generate SBOM
         run: |
           npm install -g @cyclonedx/cyclonedx-npm
           cyclonedx-npm --output-file sbom.xml
 
-      # 5️⃣ Upload SBOM artifact
+      # 5️⃣ Upload SBOM
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
         with:
@@ -71,7 +75,7 @@ jobs:
 
   provenance:
     name: Generate SLSA Provenance
-    needs: release
+    # ✅ Runs on BOTH PRs and main pushes
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -80,15 +84,17 @@ jobs:
       actions: read
 
     steps:
-      # Download SBOM from release job
-      - name: Download SBOM
-        uses: actions/download-artifact@v4
-        with:
-          name: sbom
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Generate SLSA provenance using GitHub Attestations
+      # Generate SBOM again (PR-safe, no artifacts dependency)
+      - name: Generate SBOM
+        run: |
+          npm install -g @cyclonedx/cyclonedx-npm
+          cyclonedx-npm --output-file sbom.xml
+
+      # Generate SLSA provenance
       - name: Generate provenance
-        id: attest
         uses: actions/attest-build-provenance@v1
         with:
           subject-path: sbom.xml
